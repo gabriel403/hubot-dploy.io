@@ -229,14 +229,13 @@ module.exports = (robot) ->
   # listen for communication hooks from dploy
   #
   robot.router.post '/dploy/listen', (req, res) ->
-    body = req.body
-    robot.logger.info body
-    # body = JSON.parse(req.body)
+    body = JSON.parse req.body.payload
     robot.logger.info body.deployed_at
     if !!body.deployed_at
       robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
     else
       robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} finished successfully."
+
     res.send 'OK'
     return
 
