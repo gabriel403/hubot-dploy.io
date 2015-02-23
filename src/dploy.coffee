@@ -17,6 +17,7 @@
 module.exports = (robot) ->
   module.exports.robot = robot
   DeployPrefix = process.env['HUBOT_DPLOY_PREFIX'] || "deploy"
+  DeployRoom = process.env['HUBOT_DPLOY_ROOm'] || "deployment"
 
   ###########################################################################
   # where can i deploy <app_name>
@@ -228,7 +229,12 @@ module.exports = (robot) ->
   # listen for communication hooks from dploy
   #
   robot.router.post '/dploy/listen', (req, res) ->
-    robot.logger.info req.body
+    body = JSON.parse(req.body)
+    robot.logger.info body
+    if !!body.deployed_at
+      robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
+    else
+      robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} finished successfully."
     res.send 'OK'
     return
 
