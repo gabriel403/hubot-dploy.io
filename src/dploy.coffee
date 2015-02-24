@@ -230,6 +230,7 @@ module.exports = (robot) ->
   #
   robot.router.post '/hubot/dploy', (req, res) ->
     body = req.body
+    robot.logger.info body
     body = Object.keys(body)[0]
     body = JSON.parse body
     robot.logger.info body.deployed_at
