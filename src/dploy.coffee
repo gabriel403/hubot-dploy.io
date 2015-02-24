@@ -17,7 +17,7 @@
 module.exports = (robot) ->
   module.exports.robot = robot
   DeployPrefix = process.env['HUBOT_DPLOY_PREFIX'] || "deploy"
-  DeployRoom = process.env['HUBOT_DPLOY_ROOm'] || "deployment"
+  DeployRoom = process.env['HUBOT_DPLOY_ROOM'] || "deployments"
 
   ###########################################################################
   # where can i deploy <app_name>
@@ -233,7 +233,11 @@ module.exports = (robot) ->
     robot.logger.info body
     body = Object.keys(body)[0]
     body = JSON.parse body
-    robot.logger.info body.deployed_at
+
+    if body.comment is "WebHook Test"
+      res.send 'OK'
+      return
+
     if !!body.deployed_at
       robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
     else
