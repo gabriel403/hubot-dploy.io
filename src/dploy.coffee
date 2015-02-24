@@ -228,8 +228,10 @@ module.exports = (robot) ->
   ###########################################################################
   # listen for communication hooks from dploy
   #
-  robot.router.post '/dploy/listen', (req, res) ->
-    body = JSON.parse req.body.payload
+  robot.router.post '/hubot/dploy', (req, res) ->
+    body = req.body
+    body = Object.keys(body)[0]
+    body = JSON.parse body
     robot.logger.info body.deployed_at
     if !!body.deployed_at
       robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
