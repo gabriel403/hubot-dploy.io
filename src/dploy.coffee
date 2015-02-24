@@ -235,6 +235,7 @@ module.exports = (robot) ->
     body = JSON.parse body
 
     if body.comment is "WebHook Test"
+      robot.messageRoom DeployRoom, "Repo #{body.repository} on #{body.environment} webhooks added."
       res.send 'OK'
       return
 
