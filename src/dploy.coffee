@@ -147,7 +147,7 @@ module.exports = (robot) ->
         return
 
       # post to hook
-      robot.http(env.hook)
+      robot.http("#{env.hook}&deployed_by=#{msg.message.user.name}")
         .post() (err, res, body) ->
           # pretend there's error checking code here
           if res.statusCode isnt 200
@@ -240,9 +240,9 @@ module.exports = (robot) ->
       return
 
     if !!body.deployed_at
-      robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
-    else
       robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} finished successfully."
+    else
+      robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
 
     res.send 'OK'
     return
