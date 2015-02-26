@@ -229,10 +229,10 @@ module.exports = (robot) ->
   # listen for communication hooks from dploy
   #
   robot.router.post '/hubot/dploy', (req, res) ->
-    body = req.body
+    requestType = req.get('Content-Type')
+    body        = req.body
     robot.logger.info body
-    body = Object.keys(body)[0]
-    body = JSON.parse body
+    body        = JSON.parse(Object.keys(body)[0]) if requestType is 'application/x-www-form-urlencoded'
 
     if body.comment is "WebHook Test"
       robot.messageRoom DeployRoom, "Repo #{body.repository} on #{body.environment} webhooks added."
