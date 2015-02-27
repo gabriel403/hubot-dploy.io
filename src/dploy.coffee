@@ -3,6 +3,7 @@
 #
 # Commands:
 #   hubot where can i deploy <app_name> - Displays the available environments for an application
+#   hubot what apps can i deploy - Displays the available applications
 #   hubot add <app_name> - Adds an app to the robot's brain
 #   hubot add <env_name> to <app_name> - Adds an environment to an app
 #   hubot set hook on <env_name> in <app_name> to <hook_url> - Sets the dploy hook for a givern env on an app
@@ -43,6 +44,19 @@ module.exports = (robot) ->
       msg.reply "There was an error, that sucks."
       console.log err
 
+  ###########################################################################
+  # what apps can i deploy
+  #
+  # Displays the available applications
+  robot.respond ///what\s+apps\s+can\s+i\s+#{DeployPrefix}///i, (msg) ->
+    try
+      apps = retrieveApps()
+
+      msg.reply Object.keys(apps).join(', ')
+      return
+    catch err
+      msg.reply "There was an error, that sucks."
+      console.log err
 
 
   ###########################################################################
