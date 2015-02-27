@@ -143,6 +143,10 @@ module.exports = (robot) ->
   #
   # Deploy the specified app to the specified environment
   robot.respond ///#{DeployPrefix}\s+([-_\.0-9a-z]+)\s+to\s+([-_\.0-9a-z]+)$///i, (msg) ->
+    if msg.message.user.room isnt DeployRoom
+      msg.reply "Cannot deploy from this room."
+      return
+
     app_name = msg.match[1]
     env_name = msg.match[2]
 
@@ -161,7 +165,7 @@ module.exports = (robot) ->
         return
 
       # post to hook
-      robot.http("#{env.hook}&deployed_by=#{msg.message.user.name}")
+      robot.http("#{env.hook}&deployed_by=#{msg.message.user.email_address}")
         .post() (err, res, body) ->
           # pretend there's error checking code here
           if res.statusCode isnt 200
@@ -170,6 +174,7 @@ module.exports = (robot) ->
             res.send 'error'
             return
 
+          robot.logger.info body
           msg.reply "#{app_name} on #{env_name} dploy triggered."
           return
     catch err
