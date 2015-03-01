@@ -175,7 +175,11 @@ module.exports = (robot) ->
             return
 
           robot.logger.info body
-          msg.reply "#{app_name} on #{env_name} dploy triggered."
+          if body.release.revision is body.release.environment_revision
+            msg.reply "#{app_name} on #{env_name} is already at the latest revision."
+          else
+            msg.reply "#{app_name} on #{env_name} #{DeployPrefix} triggered."
+
           return
     catch err
       msg.reply "There was an error, that sucks."
