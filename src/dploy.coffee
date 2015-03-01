@@ -16,15 +16,17 @@
 #   gabriel403
 #
 module.exports = (robot) ->
-  module.exports.robot = robot
-  DeployPrefix = process.env['HUBOT_DPLOY_PREFIX'] || "deploy"
-  DeployRoom = process.env['HUBOT_DPLOY_ROOM'] || "deployments"
+  deploy_prefix = process.env['HUBOT_DPLOY_PREFIX'] || "deploy"
+  deploy_rooms = process.env['HUBOT_DPLOY_ROOMS'] || "deployments"
+  deploy_rooms = deploy_rooms.split ','
 
   ###########################################################################
   # where can i deploy <app_name>
   #
   # Displays the available environments for an application
-  robot.respond ///where\s+can\s+i\s+#{DeployPrefix}\s+([-_\.0-9a-z]+)///i, (msg) ->
+  robot.respond ///where\s+can\s+i\s+#{deploy_prefix}\s+([-_\.0-9a-z]+)///i, (msg) ->
+    return if not isValidMsg(msg)
+
     app_name = msg.match[1]
 
     try
@@ -48,7 +50,9 @@ module.exports = (robot) ->
   # what apps can i deploy
   #
   # Displays the available applications
-  robot.respond ///what\s+apps\s+can\s+i\s+#{DeployPrefix}///i, (msg) ->
+  robot.respond ///what\s+apps\s+can\s+i\s+#{deploy_prefix}///i, (msg) ->
+    return if not isValidMsg(msg)
+
     try
       apps = retrieveApps()
 
@@ -64,6 +68,8 @@ module.exports = (robot) ->
   #
   # Adds an app to the robot's brain
   robot.respond /add\s+([-_\.0-9a-z]+)$/i, (msg) ->
+    return if not isValidMsg(msg)
+
     app_name = msg.match[1]
 
     try
@@ -86,6 +92,8 @@ module.exports = (robot) ->
   #
   # Adds an environment to an app
   robot.respond /add\s+([-_\.0-9a-z]+)\s+to\s+([-_\.0-9a-z]+)$/i, (msg) ->
+    return if not isValidMsg(msg)
+
     env_name = msg.match[1]
     app_name = msg.match[2]
 
@@ -114,6 +122,8 @@ module.exports = (robot) ->
   #
   # Sets the dploy hook for a givern env on an ap
   robot.respond /set\s+hook\s+on\s+([-_\.0-9a-z]+)\s+in\s+([-_\.0-9a-z]+)\s+to\s+(\S+)$/i, (msg) ->
+    return if not isValidMsg(msg)
+
     env_name = msg.match[1]
     app_name = msg.match[2]
     hook = msg.match[3]
@@ -142,10 +152,8 @@ module.exports = (robot) ->
   # deploy <app_name> to <env_name>
   #
   # Deploy the specified app to the specified environment
-  robot.respond ///#{DeployPrefix}\s+([-_\.0-9a-z]+)\s+to\s+([-_\.0-9a-z]+)$///i, (msg) ->
-    if msg.message.user.room isnt DeployRoom
-      msg.reply "Cannot deploy from this room."
-      return
+  robot.respond ///#{deploy_prefix}\s+([-_\.0-9a-z]+)\s+to\s+([-_\.0-9a-z]+)$///i, (msg) ->
+    return if not isValidMsg(msg)
 
     app_name = msg.match[1]
     env_name = msg.match[2]
@@ -164,6 +172,8 @@ module.exports = (robot) ->
         msg.reply "#{env_name} has no webhook."
         return
 
+      robot.brain.set 'dployLastRoom', msg.message.user.room
+
       # post to hook
       robot.http("#{env.hook}&deployed_by=#{msg.message.user.email_address}")
         .post() (err, res, body) ->
@@ -179,8 +189,8 @@ module.exports = (robot) ->
           # if body.release.revision is body.release.environment_revision
           #   msg.reply "#{app_name} on #{env_name} is already at the latest revision."
           # else
-          #   msg.reply "#{app_name} on #{env_name} #{DeployPrefix} triggered."
-          msg.reply "#{app_name} on #{env_name} #{DeployPrefix} triggered."
+          #   msg.reply "#{app_name} on #{env_name} #{deploy_prefix} triggered."
+          msg.reply "#{app_name} on #{env_name} #{deploy_prefix} triggered."
 
           return
     catch err
@@ -192,6 +202,8 @@ module.exports = (robot) ->
   #
   # Deletes an app
   robot.respond /del\s+([-_\.0-9a-z]+)$/i, (msg) ->
+    return if not isValidMsg(msg)
+
     app_name = msg.match[1]
 
     try
@@ -214,6 +226,8 @@ module.exports = (robot) ->
   #
   # Deletes an environment from an app
   robot.respond /del\s+([-_\.0-9a-z]+)\s+from\s+([-_\.0-9a-z]+)$/i, (msg) ->
+    return if not isValidMsg(msg)
+
     env_name = msg.match[1]
     app_name = msg.match[2]
 
@@ -242,6 +256,8 @@ module.exports = (robot) ->
   #
   # Deletes all apps
   robot.respond /clear all$/i, (msg) ->
+    return if not isValidMsg(msg)
+
     try
       robot.brain.set 'dployApps', {}
       msg.reply "All apps cleared"
@@ -254,61 +270,71 @@ module.exports = (robot) ->
   # listen for communication hooks from dploy
   #
   robot.router.post '/hubot/dploy', (req, res) ->
+    res.send 'OK'
+
     requestType = req.get('Content-Type')
     body        = req.body
     robot.logger.info body
     body        = JSON.parse(Object.keys(body)[0]) if requestType is 'application/x-www-form-urlencoded'
 
     if body.comment is "WebHook Test"
-      robot.messageRoom DeployRoom, "Repo #{body.repository} on #{body.environment} webhooks added."
-      res.send 'OK'
+      robot.messageRoom retrieveDployLastRoom(), "Repo #{body.repository} on #{body.environment} webhooks added."
       return
 
     if !!body.deployed_at
-      robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} finished successfully."
+      robot.messageRoom retrieveDployLastRoom(), "Deployment of #{body.repository} to #{body.environment} finished successfully."
     else
-      robot.messageRoom DeployRoom, "Deployment of #{body.repository} to #{body.environment} started."
+      robot.messageRoom retrieveDployLastRoom(), "Deployment of #{body.repository} to #{body.environment} started."
 
-    res.send 'OK'
     return
 
-retrieveApps = ->
-  apps = module.exports.robot.brain.get('dployApps')
-  apps = {} if !apps
-  apps
+  isValidMsg = (msg) ->
+    if msg.message.user.room in deploy_rooms
+      return true
 
-validateApp = (name) ->
-  apps = retrieveApps()
+    msg.reply "Cannot deploy from this room."
+    return false
 
-  if !apps or !name of apps
-    false
+  retrieveDployLastRoom = ->
+    robot.brain.get('dployLastRoom') || deploy_rooms[0]
 
-  apps[name]
+  retrieveApps = ->
+    apps = robot.brain.get('dployApps')
+    apps = {} if !apps
+    apps
 
-validateEnv = (app, env_name) ->
-  if !env_name of app.environments
-    false
+  validateApp = (name) ->
+    apps = retrieveApps()
 
-  app.environments[env_name]
+    if !apps or !name of apps
+      false
 
-saveApp = (app) ->
-  apps = retrieveApps()
-  apps[app.name] = app
+    apps[name]
 
-  console.log apps
-  module.exports.robot.brain.set 'dployApps', apps
+  validateEnv = (app, env_name) ->
+    if !env_name of app.environments
+      false
 
-delApp = (app) ->
-  apps = retrieveApps()
-  delete apps[app.name]
+    app.environments[env_name]
 
-  console.log apps
-  module.exports.robot.brain.set 'dployApps', apps
+  saveApp = (app) ->
+    apps = retrieveApps()
+    apps[app.name] = app
 
-delEnv = (app, env) ->
-  apps = retrieveApps()
-  delete apps[app.name].environments[env.name]
+    console.log apps
+    robot.brain.set 'dployApps', apps
 
-  console.log apps
-  module.exports.robot.brain.set 'dployApps', apps
+  delApp = (app) ->
+    apps = retrieveApps()
+    delete apps[app.name]
+
+    console.log apps
+    robot.brain.set 'dployApps', apps
+
+  delEnv = (app, env) ->
+    apps = retrieveApps()
+    delete apps[app.name].environments[env.name]
+
+    console.log apps
+    robot.brain.set 'dployApps', apps
 
