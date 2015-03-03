@@ -17,8 +17,7 @@
 #
 module.exports = (robot) ->
   deploy_prefix = process.env['HUBOT_DPLOY_PREFIX'] || "deploy"
-  deploy_rooms = process.env['HUBOT_DPLOY_ROOMS'] || "deployments"
-  deploy_rooms = deploy_rooms.split ','
+  deploy_rooms = (process.env['HUBOT_DPLOY_ROOMS'] || "deployments").split ','
 
   ###########################################################################
   # where can i deploy <app_name>
@@ -175,8 +174,10 @@ module.exports = (robot) ->
       robot.brain.set 'dployLastRoom', msg.message.user.room
 
       # post to hook
+      # robot.http("#{env.hook}&deployed_by=#{msg.message.user.email_address}&deploy_from_scratch=true")
       robot.http("#{env.hook}&deployed_by=#{msg.message.user.email_address}")
         .post() (err, res, body) ->
+          body = JSON.parse(body)
           # pretend there's error checking code here
           if res.statusCode isnt 200
             msg.reply "There was an error calling the hook, that sucks."
@@ -185,12 +186,10 @@ module.exports = (robot) ->
             return
 
           robot.logger.info body
-          robot.logger.info body.release
-          # if body.release.revision is body.release.environment_revision
-          #   msg.reply "#{app_name} on #{env_name} is already at the latest revision."
-          # else
-          #   msg.reply "#{app_name} on #{env_name} #{deploy_prefix} triggered."
-          msg.reply "#{app_name} on #{env_name} #{deploy_prefix} triggered."
+          if body.release.revision is body.release.environment_revision and not body.release.deploy_from_scratch
+            msg.reply "*#{app_name}* on *#{env_name}* is already at the latest revision."
+          else
+            msg.reply "*#{app_name}* on *#{env_name}* #{deploy_prefix} triggered."
 
           return
     catch err
@@ -282,9 +281,9 @@ module.exports = (robot) ->
       return
 
     if !!body.deployed_at
-      robot.messageRoom retrieveDployLastRoom(), "Deployment of #{body.repository} to #{body.environment} finished successfully."
+      robot.messageRoom retrieveDployLastRoom(), "Deployment of *#{body.repository}* to *#{body.environment}* finished successfully."
     else
-      robot.messageRoom retrieveDployLastRoom(), "Deployment of #{body.repository} to #{body.environment} started."
+      robot.messageRoom retrieveDployLastRoom(), "Deployment of *#{body.repository}* to *#{body.environment}* started."
 
     return
 
